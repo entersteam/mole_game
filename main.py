@@ -8,6 +8,8 @@ import mediapipe as mp
 import pygame
 from datetime import datetime
 
+GREEN = (0,255,0)
+
 score_board = pd.read_csv('./scoreboard.csv')
 
 cv2.namedWindow('DOODEOJI', cv2.WND_PROP_FULLSCREEN)
@@ -15,7 +17,7 @@ cv2.setWindowProperty('DOODEOJI', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN
 
 cap = cv2.VideoCapture(0)
 
-cap.set(cv2.CAP_PROP_FRAME_WIDTH,1280)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH,1024)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT,720)
 
 def main_home():
@@ -103,18 +105,20 @@ with mp_pose.Pose(
     min_tracking_confidence=0.5) as pose:
     while cap.isOpened():
         success, frame = cap.read()
+        print(frame.shape)
         if not success:
             print("Ignoring empty camera frame.")
             continue
-        image = cv2.flip(frame, 1)
+        frame = cv2.flip(frame, 1)
+        image = np.full((720,1280,3), 0, dtype=np.uint8)
 
-        image.flags.writeable = False
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        results = pose.process(image)
-        image.flags.writeable = True
-        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+        frame.flags.writeable = False
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        results = pose.process(frame)
+        frame.flags.writeable = True
+        frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 
-        h, w, _ = image.shape 
+        h, w, _ = frame.shape 
         
         present_time = time.time()
         # Extract landmarks
@@ -144,17 +148,17 @@ with mp_pose.Pose(
 
             if game_start_event == False:
 
-                cv2.putText(image, 'Clap to start a Game',
+                cv2.putText(frame, 'Clap to start a Game',
                             (w//2-300, h//2-85),
                             cv2.FONT_HERSHEY_SCRIPT_SIMPLEX, 2, (51, 102, 153), 3, cv2.LINE_AA)
-                cv2.putText(image, 'Please keep some distance or adjust your webcam',
+                cv2.putText(frame, 'Please keep some distance or adjust your webcam',
                             (w//2-210, h//2+210),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
-                cv2.putText(image, 'to show your whole body in camera frame',
+                cv2.putText(frame, 'to show your whole body in camera frame',
                             (w//2-180, h//2+230),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
-                overlay(image, (w//2-230, h//2-185), 50, 50, clap_image)
-                overlay(image, (w//2, h//2+20), 112, 210, body_image)
+                overlay(frame, (w//2-230, h//2-185), 50, 50, clap_image)
+                overlay(frame, (w//2, h//2+20), 112, 210, body_image)
                 # print('거리', get_distance(righthand, lefthand))
 
                 if get_distance(righthand, lefthand) < 30 and abs(leftz-rightz) < 20 and ( w//2-150 < nose[0] < w//2+150 and 10 < nose[1] < h//2+20):
@@ -167,11 +171,11 @@ with mp_pose.Pose(
 
             if game_start_event == True and time_remaining > 0:
                 
-                time_remaining = int(time_given - (present_time - start_time))
+                time_remaining = time_given - (present_time - start_time)
                 delete_idx = []
                 for idx, i in enumerate(moles):
                     if (i.x-50 < righthand[0] < i.x+50 and i.y-50 < righthand[1] < i.y+50) or (i.x-50 < lefthand[0] < i.x+50 and i.y-50 < lefthand[1] < i.y+50) or (i.x-50 < rightfoot[0] < i.x+50 and i.y-50 < rightfoot[1] < i.y+50) or (i.x-50 < leftfoot[0] < i.x+50 and i.y-50 < leftfoot[1] < i.y+50):
-                        overlay(image, (i.x, i.y), 50, 50, shine_image)
+                        overlay(frame, (i.x, i.y), 50, 50, shine_image)
                         score += 1
                         whack_sound.play()
                         moles.append(mole(random_pos()))
@@ -180,21 +184,26 @@ with mp_pose.Pose(
                 for i in delete_idx:
                     del moles[i]
 
-                cv2.putText(image, 'Score:',
+                cv2.putText(frame, 'Score:',
                             (w//2-250, 35),
                             cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 204), 2, cv2.LINE_AA)      
 
-                cv2.putText(image, str(score),
+                cv2.putText(frame, str(score),
                            (w//2-130, 35),
                             cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 204), 2, cv2.LINE_AA)         
 
-                cv2.putText(image, 'Time left:',
+                cv2.putText(frame, 'Time left:',
                           (w//2+30, 35),
                            cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 204), 2, cv2.LINE_AA)      
 
-                cv2.putText(image, str(time_remaining),
+                cv2.putText(frame, str(int(time_remaining)),
                          (w//2+230, 35),
                           cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 204), 2, cv2.LINE_AA) 
+                
+                start_angle = -90+(time_remaining/time_given)*360
+
+                # 부채꼴 그리기
+                cv2.ellipse(image, (1152 ,128), (250,250), 0, start_angle, 270, GREEN, -1)
 
 
 
@@ -239,17 +248,9 @@ with mp_pose.Pose(
                 score_board = pd.concat([score_board, pd.DataFrame({'name':['Unknown'], 'score' : [score], 'time':[formatted_time]})], ignore_index=True)
                 score_board.to_csv('./scoreboard.csv',index=False)
                 score_recorded = True
-
-        # Render detections
-
-        # mp_drawing.draw_landmarks(
-        #     image,
-        #     results.pose_landmarks,
-        #     mp_pose.POSE_CONNECTIONS,
-        #     landmark_drawing_spec=mp_drawing_styles.get_default_pose_landmarks_style())  
-
-
-
+                
+        
+        image[h,w,_] = frame
         cv2.imshow('DOODEOJI', image)  # 화면크기 2배 키움
         command = cv2.waitKey(5) & 0xFF
         if command == 27:
