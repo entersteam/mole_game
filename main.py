@@ -147,7 +147,12 @@ bodyh, bodyw, _ = body_image.shape
 
 lion_image = cv2.imread('./image/lion.png', cv2.IMREAD_UNCHANGED)
 lion_image = cv2.resize(lion_image, (100,100))
-print(lion_image.shape)
+
+tiger_image = cv2.imread('./image/tiger.png', cv2.IMREAD_UNCHANGED)
+
+jaguar_image = cv2.imread('./image/jaguar.png', cv2.IMREAD_UNCHANGED)
+
+dragon_image = cv2.imread('./image/dragon.png', cv2.IMREAD_UNCHANGED)
 
 seogo_logo_image = cv2.imread('./image/seogo_logo.jpg')
 seogo_logo_image = cv2.resize(seogo_logo_image, (256,256))
@@ -279,21 +284,17 @@ with mp_pose.Pose(
                 for i in delete_idx:
                     del elites[i]
 
-                cv2.putText(image, 'Score:',
+                cv2.putText(image, 'Score : '+str(score),
                             (1024, 291),
-                            cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 204), 2, cv2.LINE_AA)      
-
-                cv2.putText(image, str(score),
-                           (1144, 291),
-                            cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 204), 2, cv2.LINE_AA)         
-
-                cv2.putText(frame, 'Time left:',
+                            cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 204), 2, cv2.LINE_AA)
+                for idx, i in enumerate(ranking.iloc):
+                    cv2.putText(image, ' '.join(str(idx+1), i['name'], str(i[score])),
+                                (1024, 360 + idx*72),
+                                cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 204), 2, cv2.LINE_AA)
+                                
+                cv2.putText(frame, 'Time left : '+str(int(time_remaining)),
                           (w//2+30, 35),
-                           cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 204), 2, cv2.LINE_AA)      
-
-                cv2.putText(frame, str(int(time_remaining)),
-                         (w//2+230, 35),
-                          cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 204), 2, cv2.LINE_AA) 
+                           cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 204), 2, cv2.LINE_AA)
                 
 
                 # 부채꼴 그리기
@@ -342,13 +343,10 @@ with mp_pose.Pose(
             (w//2-147, h//2-65),
             cv2.FONT_HERSHEY_SIMPLEX, 1.7, (255, 255, 255), 3, cv2.LINE_AA)
             
-            cv2.putText(frame, 'Your Score:',
+            cv2.putText(frame, 'Your Score: '+str(score),
             (w//2-120, h//2),
-            cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA) 
-
-            cv2.putText(frame, str(score),
-            (w//2+80, h//2+3),
-            cv2.FONT_HERSHEY_SIMPLEX, 1.5, (255, 255, 255), 2, cv2.LINE_AA)   
+            cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+            
             current_time = datetime.now()
             formatted_time = current_time.strftime("%Y-%m-%d %H:%M:%S")
             if not score_recorded:
@@ -368,7 +366,6 @@ with mp_pose.Pose(
             game_pause_event = False
             score_recorded = False
 
-            time_given=30.9
             time_remaining = 99
 
             score = 0
