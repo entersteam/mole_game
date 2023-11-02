@@ -63,6 +63,7 @@ def get_distance(point, point1):
 #두더지 클래스
 class mole:
     def __init__(self, pos, life=5.0, text=None) -> None:
+        self.texture = np.random.randint(3)
         self.x=pos[0]
         self.y=pos[1]
         self.life = life
@@ -148,11 +149,23 @@ bodyh, bodyw, _ = body_image.shape
 lion_image = cv2.imread('./image/lion.png', cv2.IMREAD_UNCHANGED)
 lion_image = cv2.resize(lion_image, (100,100))
 
-tiger_image = cv2.imread('./image/tiger.png', cv2.IMREAD_UNCHANGED)
+tiger_image = cv2.resize(cv2.imread('./image/tiger.png', cv2.IMREAD_UNCHANGED), (100,100))
+tiger_mask = np.full((100,100,4), 0,dtype=np.uint8)
+tiger_mask[3] = tiger_image[3]
+tiger_mask = cv2.resize(tiger_mask, (120,120))
 
-jaguar_image = cv2.imread('./image/jaguar.png', cv2.IMREAD_UNCHANGED)
+jaguar_image = cv2.resize(cv2.imread('./image/jaguar.png', cv2.IMREAD_UNCHANGED), (100,100))
+jaguar_mask = np.full((100,100,4), 0,dtype=np.uint8)
+jaguar_mask[3] = jaguar_image[3]
+jaguar_mask = cv2.resize(jaguar_mask, (120,120))
 
-dragon_image = cv2.imread('./image/dragon.png', cv2.IMREAD_UNCHANGED)
+dragon_image = cv2.resize(cv2.imread('./image/dragon.png', cv2.IMREAD_UNCHANGED), (100,100))
+dragon_mask = np.full((100,100,4), 0,dtype=np.uint8)
+dragon_mask[3] = dragon_image[3]
+dragon_mask = cv2.resize(dragon_mask, (120,120))
+
+moles_texture = [tiger_image, jaguar_image, dragon_image]
+moles_mask = [tiger_mask,jaguar_mask,dragon_mask]
 
 seogo_logo_image = cv2.imread('./image/seogo_logo.jpg')
 seogo_logo_image = cv2.resize(seogo_logo_image, (256,256))
@@ -220,7 +233,11 @@ with mp_pose.Pose(
                 overlay(frame, (w//2-230, h//2-185), 50, 50, clap_image)
                 overlay(frame, (w//2, h//2+20), 112, 210, body_image)
                 # print('거리', get_distance(righthand, lefthand))
-
+                mp_drawing.draw_landmarks(
+                            frame,
+                            results.pose_landmarks,
+                            mp_pose.POSE_CONNECTIONS,
+                            landmark_drawing_spec=mp_drawing_styles.get_default_pose_landmarks_style())
                 if get_distance(righthand, lefthand) < 30 and abs(leftz-rightz) < 20 and ( w//2-150 < nose[0] < w//2+150 and 10 < nose[1] < h//2+20):
                     countdown = True
                     start_time = time.time()
@@ -242,6 +259,9 @@ with mp_pose.Pose(
             if game_start_event == True and time_remaining > 0:
                 
                 time_remaining = time_given - (present_time - start_time)
+                ongame_ranking = ranking.head(10)[['name', 'score']]
+                ongame_ranking = pd.concat([ongame_ranking, pd.DataFrame({'name' : ['player'], 'score' : [score]})])
+                ongame_ranking = ongame_ranking.sort_values(by='score', ascending=False)
                 if time.time() - respawn_time > respawning_time:
                     respawn_time = time.time()
                     if len(moles)<5:
@@ -287,10 +307,6 @@ with mp_pose.Pose(
                 cv2.putText(image, 'Score : '+str(score),
                             (1024, 291),
                             cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 204), 2, cv2.LINE_AA)
-                for idx, i in enumerate(ranking.iloc):
-                    cv2.putText(image, ' '.join(str(idx+1), i['name'], str(i[score])),
-                                (1024, 360 + idx*72),
-                                cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 204), 2, cv2.LINE_AA)
                                 
                 cv2.putText(frame, 'Time left : '+str(int(time_remaining)),
                           (w//2+30, 35),
@@ -310,9 +326,16 @@ with mp_pose.Pose(
 
 
 
-                # image, x, y, w, h, overlay_image (좌측 최상단x,y가 50, 50임) 최하단 430 최우측 590
+                #이미지 그리는 부분
+                for idx, i in enumerate(ongame_ranking.iloc):
+                    cv2.putText(image, ' '.join([ "%2d"%(idx+1), i['name']]),
+                                (1024, 360 + idx*39),
+                                cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,0), 2, cv2.LINE_AA)
+                    cv2.putText(image, str("%3d"%i['score']),
+                                (1220, 360 + idx*39),
+                                cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,0), 2, cv2.LINE_AA)
                 for i in moles:
-                    overlay(frame,( i.x, i.y), 50, 50, mole_image)
+                    overlay(frame,(i.x, i.y), 50, 50, moles_texture[i.texture])
                 for i in elites:
                     overlay(frame,(int(i.x), int(i.y)), 50, 50, lion_image)
                 for i in plusone_texts:
@@ -346,12 +369,21 @@ with mp_pose.Pose(
             cv2.putText(frame, 'Your Score: '+str(score),
             (w//2-120, h//2),
             cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+            for idx, i in enumerate(ranking.head(10).iloc):
+                cv2.putText(image, ' '.join([ "%2d"%(idx+1), i['name']]),
+                            (1024, 360 + idx*39),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,0), 2, cv2.LINE_AA)
+                cv2.putText(image, str("%3d"%i['score']),
+                            (1220, 360 + idx*39),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,0), 2, cv2.LINE_AA)
             
             current_time = datetime.now()
             formatted_time = current_time.strftime("%Y-%m-%d %H:%M:%S")
             if not score_recorded:
                 score_board = pd.concat([score_board, pd.DataFrame({'name':['Unknown'], 'score' : [score], 'time':[formatted_time]})], ignore_index=True)
                 score_board.to_csv('./scoreboard.csv',index=False)
+                score_board = pd.read_csv('./scoreboard.csv')
+                ranking = score_board.sort_values(by='score', ascending=False)
                 score_recorded = True
                 
         
