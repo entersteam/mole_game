@@ -7,6 +7,7 @@ import mediapipe as mp
 import pygame
 from datetime import datetime
 
+BLUE = (255,0,0)
 GREEN = (0,255,0)
 RED = (0,0,255)
 ORANGE = (0,165,255)
@@ -22,12 +23,13 @@ cap = cv2.VideoCapture(0)
 
 cap.set(cv2.CAP_PROP_FRAME_WIDTH,1280)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT,720)
-print(cap.get(cv2.CAP_PROP_FRAME_HEIGHT), cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 
+
+height = 720
 
 def random_pos():
     x = np.random.randint(178, 1102)
-    y = np.random.randint(50, 670)
+    y = np.random.randint(770 - height, 670)
     return (x,y)
 
 def unit_vector(vector):
@@ -93,10 +95,10 @@ class elite_mole:
         if self.x<178:
             norm = np.array((1,0))
             self.reflect(norm)
-        if self.y>670:
+        if self.y> 670:
             norm = np.array((0,1))
             self.reflect(norm)
-        if self.y<50:
+        if self.y< 770-height:
             norm = np.array((0,-1))
             self.reflect(norm)
         
@@ -123,14 +125,12 @@ time_given=30.9
 time_remaining = 99
 
 
-
-score = 0
+score = 0.1
 
 moles = [mole(random_pos())]
 moles.append(mole(random_pos()))
 elites = [elite_mole(random_pos())]
-plusone_texts = []
-
+texts = []
 
 
 # 이미지 선언
@@ -171,8 +171,6 @@ seogo_logo_image = cv2.imread('./image/seogo_logo.jpg')
 seogo_logo_image = cv2.resize(seogo_logo_image, (256,256))
 
 
-# For webcam input:
-
 with mp_pose.Pose(
     min_detection_confidence=0.5,
     min_tracking_confidence=0.5) as pose:
@@ -183,7 +181,7 @@ with mp_pose.Pose(
             continue
         frame = cv2.flip(frame, 1)
         image = np.full((720,1280,3), 255, dtype=np.uint8)
-        image[:256,1024:] = seogo_logo_image
+        image[:256, 1024:] = seogo_logo_image
 
         frame.flags.writeable = False
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -192,6 +190,7 @@ with mp_pose.Pose(
         frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 
         h, w, _ = frame.shape 
+        cv2.line(frame, (0, 720-height), (1280, 720-height), BLUE, 1)
         
         present_time = time.time()
         # Extract landmarks
@@ -218,21 +217,29 @@ with mp_pose.Pose(
             leftfoot = [leftfootindex[0]*w, leftfootindex[1]*h]
 
 
-
             if game_start_event == False and countdown==False:
+                
+                cv2.line(frame, (0, 720-height), (1280, 720-height), BLUE, 1)
+                
+                cv2.putText(image, 'SCORE > 20',(1024, 360),cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,0), 2, cv2.LINE_AA)
+                cv2.putText(image, ' - 1 HARIBO',(1024, 395),cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,0), 2, cv2.LINE_AA)
+                cv2.putText(image, 'SCORE > 40',(1024, 460),cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,0), 2, cv2.LINE_AA)
+                cv2.putText(image, ' - 2 HARIBO',(1024, 495),cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,0), 2, cv2.LINE_AA)
 
                 cv2.putText(frame, 'Clap to start a Game',
-                            (w//2-300, h//2-85),
+                            (w//2-300, 640),
                             cv2.FONT_HERSHEY_SCRIPT_SIMPLEX, 2, (51, 102, 153), 3, cv2.LINE_AA)
-                cv2.putText(frame, 'Please keep some distance or adjust your webcam',
-                            (w//2-210, h//2+210),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
-                cv2.putText(frame, 'to show your whole body in camera frame',
-                            (w//2-180, h//2+230),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
+                
+                # cv2.putText(frame, 'Please keep some distance or adjust your webcam',
+                #             (w//2-210, h//2+210),
+                #             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
+                # cv2.putText(frame, 'to show your whole body in camera frame',
+                #             (w//2-180, h//2+230),
+                #             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
+                
                 overlay(frame, (w//2-230, h//2-185), 50, 50, clap_image)
                 overlay(frame, (w//2, h//2+20), 112, 210, body_image)
-                # print('거리', get_distance(righthand, lefthand))
+                
                 mp_drawing.draw_landmarks(
                             frame,
                             results.pose_landmarks,
@@ -254,7 +261,7 @@ with mp_pose.Pose(
                     start_time = time.time()
                     countdown = False
                     game_start_event = True
-
+                    
 
             if game_start_event == True and time_remaining > 0:
                 
@@ -264,15 +271,15 @@ with mp_pose.Pose(
                 ongame_ranking = ongame_ranking.sort_values(by='score', ascending=False)
                 if time.time() - respawn_time > respawning_time:
                     respawn_time = time.time()
-                    if len(moles)<5:
+                    if len(moles) + len(elites) <4:
                         if np.random.rand() < 0.1:
                             elites.append(elite_mole(random_pos()))
                         else:
                             moles.append(mole(random_pos()))
                 for i in moles:
                     i.check(moles)
-                for i in plusone_texts:
-                    i.check(plusone_texts)
+                for i in texts:
+                    i.check(texts)
                 for i in elites:
                     i.crash_detection()
                     i.move()
@@ -286,7 +293,7 @@ with mp_pose.Pose(
                         whack_sound.play()
                         #moles.append(mole(random_pos()))
                         delete_idx.append(idx)
-                        plusone_texts.append(mole((i.x,i.y), 0.5,"+1"))
+                        texts.append(mole((i.x,i.y), 0.5,"+1"))
                 delete_idx.reverse()
                 for i in delete_idx:
                     del moles[i]
@@ -299,12 +306,12 @@ with mp_pose.Pose(
                         whack_sound.play()
                         #moles.append(mole(random_pos()))
                         delete_idx.append(idx)
-                        plusone_texts.append(mole((int(i.x),int(i.y)), 0.5,"+3"))
+                        texts.append(mole((int(i.x),int(i.y)), 0.5,"+3"))
                 delete_idx.reverse()
                 for i in delete_idx:
                     del elites[i]
 
-                cv2.putText(image, 'Score : '+str(score),
+                cv2.putText(image, 'Score : '+str(int(score)),
                             (1024, 291),
                             cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 204), 2, cv2.LINE_AA)
                                 
@@ -324,8 +331,6 @@ with mp_pose.Pose(
                 angle = -90-(time_remaining/time_given)*360
                 cv2.ellipse(image, (1152 ,128), (125,125), 0, angle, -90, timer_color, -1)
 
-
-
                 #이미지 그리는 부분
                 for idx, i in enumerate(ongame_ranking.iloc):
                     cv2.putText(image, ' '.join([ "%2d"%(idx+1), i['name']]),
@@ -338,7 +343,7 @@ with mp_pose.Pose(
                     overlay(frame,(i.x, i.y), 50, 50, moles_texture[i.texture])
                 for i in elites:
                     overlay(frame,(int(i.x), int(i.y)), 50, 50, lion_image)
-                for i in plusone_texts:
+                for i in texts:
                     cv2.putText(frame, i.text, (i.x,i.y), cv2.FONT_HERSHEY_DUPLEX, 2, (255,255,255), 3)
                     cv2.putText(frame,  i.text, (i.x,i.y), cv2.FONT_HERSHEY_DUPLEX, 2, (0,0,0), 2)
             
@@ -346,10 +351,6 @@ with mp_pose.Pose(
                 
                 time_remaining = 0
                 game_over_event = True
-
-
-
-
 
         except:
             cv2.putText(frame, 'Please show your face and keep some distance from your webcam',
@@ -366,7 +367,7 @@ with mp_pose.Pose(
             (w//2-147, h//2-65),
             cv2.FONT_HERSHEY_SIMPLEX, 1.7, (255, 255, 255), 3, cv2.LINE_AA)
             
-            cv2.putText(frame, 'Your Score: '+str(score),
+            cv2.putText(frame, 'Your Score: '+str(int(score)),
             (w//2-120, h//2),
             cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
             for idx, i in enumerate(ranking.head(10).iloc):
@@ -380,7 +381,7 @@ with mp_pose.Pose(
             current_time = datetime.now()
             formatted_time = current_time.strftime("%Y-%m-%d %H:%M:%S")
             if not score_recorded:
-                score_board = pd.concat([score_board, pd.DataFrame({'name':['Unknown'], 'score' : [score], 'time':[formatted_time]})], ignore_index=True)
+                score_board = pd.concat([score_board, pd.DataFrame({'name':['Unknown'], 'score' : [int(score)], 'time':[formatted_time]})], ignore_index=True)
                 score_board.to_csv('./scoreboard.csv',index=False)
                 score_board = pd.read_csv('./scoreboard.csv')
                 ranking = score_board.sort_values(by='score', ascending=False)
@@ -389,6 +390,7 @@ with mp_pose.Pose(
         
         image[:,:1024] = frame[:,128:1152]
         cv2.imshow('DOODEOJI', image)  # 화면크기 2배 키움
+        cv2.imshow('panal', np.full((300,400,3), 255, dtype=np.uint8))
         command = cv2.waitKey(5) & 0xFF
         if command == 27:
             break
@@ -397,9 +399,16 @@ with mp_pose.Pose(
             game_over_event = False
             game_pause_event = False
             score_recorded = False
+            height = 720
 
             time_remaining = 99
 
-            score = 0
-            continue
+            score = 0.1
+            
+        elif command == ord('q') or command == ord('Q'):
+            height = 720
+        elif command == ord('w') or command == ord('W'):
+            height += 10
+        elif command == ord('s') or command == ord('S'):
+            height -= 10
 cap.release()
