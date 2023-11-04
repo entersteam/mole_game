@@ -6,18 +6,23 @@ import pandas as pd
 import mediapipe as mp
 import pygame
 from datetime import datetime
+from PIL import ImageFont, ImageDraw, Image
+import os
 
 BLUE = (255,0,0)
 GREEN = (0,255,0)
 RED = (0,0,255)
 ORANGE = (0,165,255)
 
+fontpath = "fonts/gulim.ttc"
+font = ImageFont.truetype(fontpath, 30 )  # 폰트 크기 설정
+                         
 score_board = pd.read_csv('./scoreboard.csv')
 ranking = score_board.sort_values(by='score', ascending=False)
 
 cv2.namedWindow('DOODEOJI', cv2.WND_PROP_FULLSCREEN)
 cv2.setWindowProperty('DOODEOJI', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-#cv2.moveWindow('DOODEOJI', 1920, 0)
+cv2.moveWindow('DOODEOJI', 1920, 0)
 
 cap = cv2.VideoCapture(0)
 
@@ -64,7 +69,7 @@ def get_distance(point, point1):
 
 #두더지 클래스
 class mole:
-    def __init__(self, pos, life=5.0, text=None) -> None:
+    def __init__(self, pos, life=7.0, text=None) -> None:
         self.texture = np.random.randint(3)
         self.x=pos[0]
         self.y=pos[1]
@@ -117,11 +122,12 @@ countdown = False
 game_over_event = False
 game_pause_event = False
 score_recorded  = False
+ready = False
 
 respawn_time = -np.Inf
 respawning_time = 0.4
 
-time_given=30.9
+time_given=45.9
 time_remaining = 99
 
 
@@ -190,7 +196,6 @@ with mp_pose.Pose(
         frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 
         h, w, _ = frame.shape 
-        cv2.line(frame, (0, 720-height), (1280, 720-height), BLUE, 1)
         
         present_time = time.time()
         # Extract landmarks
@@ -221,9 +226,9 @@ with mp_pose.Pose(
                 
                 cv2.line(frame, (0, 720-height), (1280, 720-height), BLUE, 1)
                 
-                cv2.putText(image, 'SCORE > 20',(1024, 360),cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,0), 2, cv2.LINE_AA)
+                cv2.putText(image, 'SCORE > 30',(1024, 360),cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,0), 2, cv2.LINE_AA)
                 cv2.putText(image, ' - 1 HARIBO',(1024, 395),cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,0), 2, cv2.LINE_AA)
-                cv2.putText(image, 'SCORE > 40',(1024, 460),cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,0), 2, cv2.LINE_AA)
+                cv2.putText(image, 'SCORE > 60',(1024, 460),cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,0), 2, cv2.LINE_AA)
                 cv2.putText(image, ' - 2 HARIBO',(1024, 495),cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,0), 2, cv2.LINE_AA)
 
                 cv2.putText(frame, 'Clap to start a Game',
@@ -245,8 +250,15 @@ with mp_pose.Pose(
                             results.pose_landmarks,
                             mp_pose.POSE_CONNECTIONS,
                             landmark_drawing_spec=mp_drawing_styles.get_default_pose_landmarks_style())
-                if get_distance(righthand, lefthand) < 30 and abs(leftz-rightz) < 20 and ( w//2-150 < nose[0] < w//2+150 and 10 < nose[1] < h//2+20):
+                
+                if ready:
+                    circle_color = GREEN
+                else:
+                    circle_color = RED
+                cv2.circle(image,(1260,700), 10, circle_color, -1)
+                if get_distance(righthand, lefthand) < 30 and abs(leftz-rightz) < 20 and ( w//2-150 < nose[0] < w//2+150 and 10 < nose[1] < h//2+20) and ready:
                     countdown = True
+                    height = 720 - nose[1]
                     start_time = time.time()
                     
 
@@ -287,7 +299,7 @@ with mp_pose.Pose(
                     
                 delete_idx = []
                 for idx, i in enumerate(moles):
-                    if (i.x-50 < righthand[0] < i.x+50 and i.y-50 < righthand[1] < i.y+50) or (i.x-50 < lefthand[0] < i.x+50 and i.y-50 < lefthand[1] < i.y+50) or (i.x-50 < rightfoot[0] < i.x+50 and i.y-50 < rightfoot[1] < i.y+50) or (i.x-50 < leftfoot[0] < i.x+50 and i.y-50 < leftfoot[1] < i.y+50):
+                    if (i.x-60 < righthand[0] < i.x+60 and i.y-60 < righthand[1] < i.y+60) or (i.x-50 < lefthand[0] < i.x+50 and i.y-50 < lefthand[1] < i.y+50) or (i.x-50 < rightfoot[0] < i.x+50 and i.y-50 < rightfoot[1] < i.y+50) or (i.x-50 < leftfoot[0] < i.x+50 and i.y-50 < leftfoot[1] < i.y+50):
                         overlay(frame, (i.x, i.y), 50, 50, shine_image)
                         score += 1
                         whack_sound.play()
@@ -300,7 +312,7 @@ with mp_pose.Pose(
                     
                 delete_idx = []
                 for idx, i in enumerate(elites):
-                    if (i.x-50 < righthand[0] < i.x+50 and i.y-50 < righthand[1] < i.y+50) or (i.x-50 < lefthand[0] < i.x+50 and i.y-50 < lefthand[1] < i.y+50) or (i.x-50 < rightfoot[0] < i.x+50 and i.y-50 < rightfoot[1] < i.y+50) or (i.x-50 < leftfoot[0] < i.x+50 and i.y-50 < leftfoot[1] < i.y+50):
+                    if (i.x-60 < righthand[0] < i.x+60 and i.y-60 < righthand[1] < i.y+60) or (i.x-50 < lefthand[0] < i.x+50 and i.y-50 < lefthand[1] < i.y+50) or (i.x-50 < rightfoot[0] < i.x+50 and i.y-50 < rightfoot[1] < i.y+50) or (i.x-50 < leftfoot[0] < i.x+50 and i.y-50 < leftfoot[1] < i.y+50):
                         overlay(frame, (int(i.x), int(i.y)), 50, 50, shine_image)
                         score += 3
                         whack_sound.play()
@@ -330,15 +342,30 @@ with mp_pose.Pose(
                 
                 angle = -90-(time_remaining/time_given)*360
                 cv2.ellipse(image, (1152 ,128), (125,125), 0, angle, -90, timer_color, -1)
+                
+                image_pil = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+                draw = ImageDraw.Draw(image_pil)
+
+                # 한글 텍스트 추가
+
+
+                # Pillow 이미지를 OpenCV 이미지로 변환
 
                 #이미지 그리는 부분
                 for idx, i in enumerate(ongame_ranking.iloc):
-                    cv2.putText(image, ' '.join([ "%2d"%(idx+1), i['name']]),
-                                (1024, 360 + idx*39),
-                                cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,0), 2, cv2.LINE_AA)
-                    cv2.putText(image, str("%3d"%i['score']),
-                                (1220, 360 + idx*39),
-                                cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,0), 2, cv2.LINE_AA)
+                    text = ' '.join([ "%2d"%(idx+1), i['name']])
+                    if len(text) > 9:
+                        text = text[:8]+'...'
+                    # cv2.putText(image, ' '.join([ "%2d"%(idx+1), i['name']]),
+                    #             (1024, 360 + idx*39),
+                    #             cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,0), 2, cv2.LINE_AA)
+                    draw.text((1024, 340 + idx*39), text, font=font, fill=(0,0,0))
+                    draw.text((1220, 340 + idx*39), str("%3d"%i['score']), font=font, fill=(0,0,0))
+                    # cv2.putText(image, str("%3d"%i['score']),
+                    #             (1220, 360 + idx*39),
+                    #             cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,0), 2, cv2.LINE_AA)
+                
+                image = cv2.cvtColor(np.array(image_pil), cv2.COLOR_RGB2BGR)
                 for i in moles:
                     overlay(frame,(i.x, i.y), 50, 50, moles_texture[i.texture])
                 for i in elites:
@@ -370,26 +397,28 @@ with mp_pose.Pose(
             cv2.putText(frame, 'Your Score: '+str(int(score)),
             (w//2-120, h//2),
             cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
-            for idx, i in enumerate(ranking.head(10).iloc):
-                cv2.putText(image, ' '.join([ "%2d"%(idx+1), i['name']]),
-                            (1024, 360 + idx*39),
-                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,0), 2, cv2.LINE_AA)
-                cv2.putText(image, str("%3d"%i['score']),
-                            (1220, 360 + idx*39),
-                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,0), 2, cv2.LINE_AA)
+            image_pil = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
             
-            current_time = datetime.now()
-            formatted_time = current_time.strftime("%Y-%m-%d %H:%M:%S")
-            if not score_recorded:
-                score_board = pd.concat([score_board, pd.DataFrame({'name':['Unknown'], 'score' : [int(score)], 'time':[formatted_time]})], ignore_index=True)
-                score_board.to_csv('./scoreboard.csv',index=False)
-                score_board = pd.read_csv('./scoreboard.csv')
-                ranking = score_board.sort_values(by='score', ascending=False)
-                score_recorded = True
+            draw = ImageDraw.Draw(image_pil)
+            
+            for idx, i in enumerate(ongame_ranking.iloc):
+                text = ' '.join([ "%2d"%(idx+1), i['name']])
+                if len(text) > 8:
+                    text = text[:8]+'...'
+                # cv2.putText(image, ' '.join([ "%2d"%(idx+1), i['name']]),
+                #             (1024, 360 + idx*39),
+                #             cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,0), 2, cv2.LINE_AA)
+                draw.text((1024, 340 + idx*39), text, font=font, fill=(0,0,0))
+                draw.text((1220, 340 + idx*39), str("%3d"%i['score']), font=font, fill=(0,0,0))
+                # cv2.putText(image, str("%3d"%i['score']),
+                #             (1220, 360 + idx*39),
+                #             cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,0), 2, cv2.LINE_AA)
+            image = cv2.cvtColor(np.array(image_pil), cv2.COLOR_RGB2BGR)
+            
                 
         
         image[:,:1024] = frame[:,128:1152]
-        cv2.imshow('DOODEOJI', image)  # 화면크기 2배 키움
+        cv2.imshow('DOODEOJI', image) 
         cv2.imshow('panal', np.full((300,400,3), 255, dtype=np.uint8))
         command = cv2.waitKey(5) & 0xFF
         if command == 27:
@@ -404,11 +433,29 @@ with mp_pose.Pose(
             time_remaining = 99
 
             score = 0.1
-            
+            ready = False
         elif command == ord('q') or command == ord('Q'):
             height = 720
         elif command == ord('w') or command == ord('W'):
             height += 10
         elif command == ord('s') or command == ord('S'):
             height -= 10
+        elif command == ord('y') or command == ord('Y'):
+            ready = True
+        elif command == ord('n') or command == ord('N'):
+            ready = False
+        
+        if game_over_event:
+            current_time = datetime.now()
+            formatted_time = current_time.strftime("%Y-%m-%d %H:%M:%S")
+            if not score_recorded:
+                player_name = input("플레이어의 이름 : ")
+                if not player_name == '취소':
+                    if player_name=='':
+                        player_name = 'Unknown'
+                    score_board = pd.concat([score_board, pd.DataFrame({'name':[player_name], 'score' : [int(score)], 'time':[formatted_time]})], ignore_index=True)
+                    score_board.to_csv('./scoreboard.csv',index=False)
+                    score_board = pd.read_csv('./scoreboard.csv')
+                    ranking = score_board.sort_values(by='score', ascending=False)
+                score_recorded = True
 cap.release()
